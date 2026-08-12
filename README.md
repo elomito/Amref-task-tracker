@@ -1,4 +1,4 @@
-# Mini Task Tracker
+# Amref Task Tracker
 
 A lightweight task management application built with Django and vanilla JavaScript.
 
@@ -22,7 +22,7 @@ A lightweight task management application built with Django and vanilla JavaScri
 - **Django CORS Headers** - Handle cross-origin requests
 
 ### Frontend
-- **Vanilla JavaScript** - No frameworks, pure JavaScript
+- **Vanilla JavaScript** - No frameworks, just JavaScript
 - **HTML5** - Semantic markup
 - **CSS3** - Modern styling
 
@@ -33,7 +33,7 @@ A lightweight task management application built with Django and vanilla JavaScri
 
 ```
 amrefproject/
-├── backend/                    # API endpoints and models
+├── backend/                   # API endpoints and models
 │   ├── models.py              # Task model definition
 │   ├── serializers.py         # DRF serializers
 │   ├── views.py               # API viewsets
