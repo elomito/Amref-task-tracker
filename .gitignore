@@ -5,3 +5,6 @@ venv/
 db.sqlite3
 
 amrefproject/__pycache__
+
+amrefproject/frontend/__pycache__/
+amrefproject/backend/__pycache__/
