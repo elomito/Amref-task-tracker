@@ -1,6 +1,8 @@
 const API_URL = "/api/tasks/";
 const STATUS_CHOICES = ["To Do", "In Progress", "Done"];
 
+let currentEditingTaskId = null;
+
 function getCookie(name) {
   const cookies = document.cookie.split(";");
   for (const cookie of cookies) {
@@ -10,6 +12,14 @@ function getCookie(name) {
     }
   }
   return null;
+}
+
+function getCSRFToken() {
+  return (
+    getCookie("csrftoken") ||
+    document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
+    ""
+  );
 }
 
 function showMessage(message, type = "error") {
@@ -28,20 +38,6 @@ function clearStatus() {
   document.getElementById("list-status").textContent = "";
 }
 
-function createSelect(value) {
-  const select = document.createElement("select");
-  for (const choice of STATUS_CHOICES) {
-    const option = document.createElement("option");
-    option.value = choice;
-    option.textContent = choice;
-    if (choice === value) {
-      option.selected = true;
-    }
-    select.appendChild(option);
-  }
-  return select;
-}
-
 function renderTask(task) {
   const li = document.createElement("li");
   li.className = "task-item";
@@ -49,73 +45,32 @@ function renderTask(task) {
   const info = document.createElement("div");
   info.className = "task-info";
 
-  const titleLabel = document.createElement("label");
-  titleLabel.textContent = "Title";
-  const titleInput = document.createElement("input");
-  titleInput.type = "text";
-  titleInput.value = task.title;
-  titleInput.className = "task-title";
+  const title = document.createElement("strong");
+  title.textContent = task.title;
 
-  const descriptionLabel = document.createElement("label");
-  descriptionLabel.textContent = "Description";
-  const descriptionInput = document.createElement("textarea");
-  descriptionInput.value = task.description;
-  descriptionInput.className = "task-description";
+  const description = document.createElement("p");
+  description.textContent = task.description || "";
 
-  info.appendChild(titleLabel);
-  info.appendChild(titleInput);
-  info.appendChild(descriptionLabel);
-  info.appendChild(descriptionInput);
+  const status = document.createElement("p");
+  status.textContent = `Status: ${task.status}`;
+  status.className = "task-status-label";
+
+  info.appendChild(title);
+  info.appendChild(description);
+  info.appendChild(status);
 
   const controls = document.createElement("div");
   controls.className = "status-form";
 
-  const select = createSelect(task.status);
-  select.className = "task-status";
-
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.textContent = "Save";
+  const updateButton = document.createElement("button");
+  updateButton.type = "button";
+  updateButton.textContent = "Update";
+  updateButton.addEventListener("click", () => openEditForm(task));
 
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.textContent = "Delete";
   deleteButton.className = "delete-btn";
-
-  saveButton.addEventListener("click", async () => {
-    const title = titleInput.value.trim();
-    if (!title) {
-      showMessage("Title is required.", "error");
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}${task.id}/`, {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken"),
-        },
-        body: JSON.stringify({
-          title,
-          description: descriptionInput.value.trim(),
-          status: select.value,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        showMessage(data.detail || "Could not update task.", "error");
-        return;
-      }
-      showMessage("Task updated.", "success");
-      await loadTasks();
-    } catch (error) {
-      showMessage("Could not reach backend API.", "error");
-    }
-  });
-
   deleteButton.addEventListener("click", async () => {
     if (!confirm("Delete this task?")) {
       return;
@@ -126,7 +81,7 @@ function renderTask(task) {
         method: "DELETE",
         credentials: "same-origin",
         headers: {
-          "X-CSRFToken": getCookie("csrftoken"),
+          "X-CSRFToken": getCSRFToken(),
         },
       });
 
@@ -141,13 +96,36 @@ function renderTask(task) {
     }
   });
 
-  controls.appendChild(select);
-  controls.appendChild(saveButton);
+  controls.appendChild(updateButton);
   controls.appendChild(deleteButton);
 
   li.appendChild(info);
   li.appendChild(controls);
   return li;
+}
+
+function openEditForm(task) {
+  currentEditingTaskId = task.id;
+  document.getElementById("form-title").textContent = "Edit Task";
+  document.getElementById("task-id").value = task.id;
+  document.getElementById("task-title").value = task.title;
+  document.getElementById("task-description").value = task.description;
+  document.getElementById("task-status").value = task.status;
+  document.getElementById("submit-btn").textContent = "Save Changes";
+  document.getElementById("cancel-btn").classList.remove("hidden");
+  document.querySelector(".task-form-section").scrollIntoView({ behavior: "smooth" });
+}
+
+function resetForm() {
+  currentEditingTaskId = null;
+  document.getElementById("form-title").textContent = "New Task";
+  document.getElementById("task-id").value = "";
+  document.getElementById("task-title").value = "";
+  document.getElementById("task-description").value = "";
+  document.getElementById("task-status").value = "To Do";
+  document.getElementById("submit-btn").textContent = "Add Task";
+  document.getElementById("cancel-btn").classList.add("hidden");
+  document.getElementById("task-form").reset();
 }
 
 async function loadTasks() {
@@ -168,7 +146,7 @@ async function loadTasks() {
     const tasks = await response.json();
     list.innerHTML = "";
     if (tasks.length === 0) {
-      setStatus("No tasks yet — add one above.");
+      setStatus("No tasks yet, add one above.");
       return;
     }
     clearStatus();
@@ -181,11 +159,11 @@ async function loadTasks() {
   }
 }
 
-async function createTask(event) {
+async function handleTaskSubmit(event) {
   event.preventDefault();
-  const title = document.getElementById("title").value.trim();
-  const description = document.getElementById("description").value.trim();
-  const status = document.getElementById("status").value;
+  const title = document.getElementById("task-title").value.trim();
+  const description = document.getElementById("task-description").value.trim();
+  const status = document.getElementById("task-status").value;
 
   if (!title) {
     showMessage("Title is required.", "error");
@@ -193,36 +171,55 @@ async function createTask(event) {
   }
 
   try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken"),
-      },
-      body: JSON.stringify({ title, description, status }),
-    });
+    if (currentEditingTaskId) {
+      // Update existing task
+      const response = await fetch(`${API_URL}${currentEditingTaskId}/`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({ title, description, status }),
+      });
 
-    if (!response.ok) {
-      const data = await response.json();
-      showMessage(data.detail || "Could not create task.", "error");
-      return;
+      if (!response.ok) {
+        const data = await response.json();
+        showMessage(data.detail || "Could not update task.", "error");
+        return;
+      }
+
+      showMessage("Task updated.", "success");
+    } else {
+      // Create new task
+      const response = await fetch(API_URL, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({ title, description, status }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        showMessage(data.detail || "Could not create task.", "error");
+        return;
+      }
+
+      showMessage("Task created.", "success");
     }
 
-    showMessage("Task created.", "success");
-    document.getElementById("new-task-form").reset();
+    resetForm();
     await loadTasks();
   } catch (error) {
     showMessage("Could not reach backend API.", "error");
   }
 }
 
-function setupForm() {
-  document.getElementById("new-task-form").addEventListener("submit", createTask);
-}
-
 function setupStatusOptions() {
-  const statusSelect = document.getElementById("status");
+  const statusSelect = document.getElementById("task-status");
   statusSelect.innerHTML = "";
   for (const status of STATUS_CHOICES) {
     const option = document.createElement("option");
@@ -230,6 +227,11 @@ function setupStatusOptions() {
     option.textContent = status;
     statusSelect.appendChild(option);
   }
+}
+
+function setupForm() {
+  document.getElementById("task-form").addEventListener("submit", handleTaskSubmit);
+  document.getElementById("cancel-btn").addEventListener("click", resetForm);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
