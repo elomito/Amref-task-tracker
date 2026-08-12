@@ -13,18 +13,11 @@
       <h1>Mini Task Tracker</h1>
     </header>
 
-    {% if messages %}
-      <ul class="messages">
-        {% for message in messages %}
-          <li class="{{ message.tags }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
+    <ul id="messages" class="messages"></ul>
 
     <section class="task-form-section">
       <h2>New Task</h2>
-      <form method="post" action="{% url 'create_task' %}">
-        {% csrf_token %}
+      <form id="new-task-form">
         <div class="field">
           <label for="title">Title *</label>
           <input type="text" id="title" name="title" placeholder="e.g. Write README">
@@ -35,11 +28,7 @@
         </div>
         <div class="field">
           <label for="status">Status</label>
-          <select id="status" name="status">
-            {% for choice in status_choices %}
-              <option value="{{ choice }}">{{ choice }}</option>
-            {% endfor %}
-          </select>
+          <select id="status" name="status"></select>
         </div>
         <button type="submit">Add Task</button>
       </form>
@@ -47,36 +36,10 @@
 
     <section class="task-list-section">
       <h2>Tasks</h2>
-      {% if tasks %}
-        <ul id="task-list">
-          {% for task in tasks %}
-            <li class="task-item">
-              <div class="task-info">
-                <strong>{{ task.title }}</strong>
-                <p>{{ task.description }}</p>
-              </div>
-
-              <form method="post" action="{% url 'update_task' task.id %}" class="status-form">
-                {% csrf_token %}
-                <select name="status">
-                  {% for choice in status_choices %}
-                    <option value="{{ choice }}" {% if choice == task.status %}selected{% endif %}>{{ choice }}</option>
-                  {% endfor %}
-                </select>
-                <button type="submit">Update</button>
-              </form>
-
-              <form method="post" action="{% url 'delete_task' task.id %}">
-                {% csrf_token %}
-                <button type="submit" class="delete-btn">Delete</button>
-              </form>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No tasks yet — add one above.</p>
-      {% endif %}
+      <p id="list-status"></p>
+      <ul id="task-list"></ul>
     </section>
   </div>
+  <script src="{% static 'frontend/app.js' %}"></script>
 </body>
 </html>
